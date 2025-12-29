@@ -13,7 +13,9 @@
   const isDrawerOpen = ref(false)
   const selectedNode = ref(null)
   
-  // 节点数据
+  // 🔥 关键修改：连接到 Zeabur 云端后端
+  const API_BASE = 'https://life-skill-tree.zeabur.app'
+  
   const nodes = ref([
     { id: 'root', type: 'skill', position: { x: 300, y: 0 }, data: { label: '我的数字帝国', state: 'active', isRoot: true, icon: 'https://api.iconify.design/noto:crown.svg', note: '' } },
     { id: 'amz', type: 'skill', position: { x: 100, y: 150 }, data: { label: '亚马逊运营', state: 'inactive', icon: 'https://api.iconify.design/ri:amazon-fill.svg?color=%23FF9900', note: '' } },
@@ -45,7 +47,7 @@
   
   onMounted(async () => {
     try {
-      const res = await fetch('http://localhost:3000/api/nodes')
+      const res = await fetch(`${API_BASE}/api/nodes`)
       const dbNodes = await res.json()
       dbNodes.forEach(dbNode => syncNodeData(dbNode))
     } catch (e) {
@@ -53,12 +55,10 @@
     }
   })
   
-  // 🔥 修复点 1：更新数据时，也要把 ID 塞进去
   function handleNodeUpdate(updatedNode) {
     syncNodeData(updatedNode)
     const node = findNode(updatedNode.id)
     if (node) {
-      // 手动合并 ID，确保 Drawer 能拿到 id
       selectedNode.value = { ...node.data, id: node.id }
     }
   }
@@ -66,7 +66,7 @@
   onNodeClick(async (event) => {
     if (event.node.id === 'root') return
     try {
-      const res = await fetch('http://localhost:3000/api/toggle', {
+      const res = await fetch(`${API_BASE}/api/toggle`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: event.node.id })
@@ -74,13 +74,8 @@
       const data = await res.json()
       if (data.success) {
         syncNodeData(data.node)
-        
-        // 🔥 修复点 2：打开侧边栏时，把 node.id 也塞进 selectedNode
-        // 之前是：selectedNode.value = findNode(event.node.id).data (这里面没有 id)
-        // 现在改成：
         const node = findNode(event.node.id)
         selectedNode.value = { ...node.data, id: node.id }
-        
         isDrawerOpen.value = true
       }
     } catch (e) { console.error(e) }

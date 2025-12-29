@@ -7,10 +7,11 @@
     const noteContent = ref('')
     const isSaving = ref(false)
     
-    // 监听数据变化，同步到输入框
+    // 🔥 关键修改：连接到 Zeabur 云端后端
+    const API_BASE = 'https://life-skill-tree.zeabur.app'
+    
     watch(() => props.nodeData, (newData) => {
       if (newData) {
-        console.log('Drawer 加载数据:', newData)
         noteContent.value = newData.note || ''
       }
     })
@@ -19,33 +20,25 @@
       if (!props.nodeData) return
       isSaving.value = true
       
-      // 打印日志：看看前端发了什么
-      console.log('--- 📤 前端准备发送 ---')
-      const payload = {
-        id: props.nodeData.id,
-        text: noteContent.value // 获取输入框的当前值
-      }
-      console.log('发送数据:', payload)
-    
       try {
-        const res = await fetch('http://localhost:3000/api/note', {
+        const res = await fetch(`${API_BASE}/api/note`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
+          body: JSON.stringify({
+            id: props.nodeData.id,
+            text: noteContent.value
+          })
         })
         
         const data = await res.json()
-        console.log('后端返回:', data) // 打印后端响应
-        
         if (data.success) {
           emit('update-node', data.node)
           alert('保存成功！📝')
         } else {
-          alert('后端报错: ' + data.message)
+          alert('保存失败: ' + data.message)
         }
       } catch (e) {
-        console.error('请求出错:', e)
-        alert('请求失败，请检查控制台报错')
+        alert('请求失败，请检查后端')
       } finally {
         isSaving.value = false
       }
@@ -54,7 +47,6 @@
     
     <template>
       <div v-if="isOpen" class="overlay" @click="$emit('close')"></div>
-    
       <div class="drawer" :class="{ 'open': isOpen }">
         <div v-if="nodeData" class="drawer-content">
           <header class="drawer-header">
@@ -67,19 +59,12 @@
             </div>
             <button class="close-btn" @click="$emit('close')">×</button>
           </header>
-    
           <hr class="divider" />
-    
           <div class="notes-area">
             <h3>📚 学习笔记</h3>
             <p class="placeholder-text">关于 <strong>{{ nodeData.label }}</strong> 的知识点：</p>
-            <textarea 
-              v-model="noteContent"
-              placeholder="在此输入笔记..."
-              class="note-input"
-            ></textarea>
+            <textarea v-model="noteContent" placeholder="在此输入笔记..." class="note-input"></textarea>
           </div>
-    
           <div class="actions">
             <button class="action-btn">查看教程</button>
             <button class="action-btn primary" @click="saveNote" :disabled="isSaving">
@@ -91,7 +76,6 @@
     </template>
     
     <style scoped>
-    /* 样式保持不变 */
     .overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.6); z-index: 99; backdrop-filter: blur(2px); }
     .drawer { position: fixed; top: 0; right: -400px; bottom: 0; width: 350px; background: #1a1a1a; border-left: 1px solid #333; z-index: 100; transition: right 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); box-shadow: -5px 0 30px rgba(0,0,0,0.8); color: #fff; padding: 20px; box-sizing: border-box; display: flex; flex-direction: column; }
     .drawer.open { right: 0; }
@@ -109,8 +93,3 @@
     .placeholder-text { font-size: 0.9rem; color: #777; margin-bottom: 10px; }
     .note-input { width: 100%; flex-grow: 1; min-height: 200px; background: #222; border: 1px solid #444; color: #ddd; padding: 12px; border-radius: 8px; resize: none; font-family: inherit; box-sizing: border-box; font-size: 14px; line-height: 1.5; }
     .note-input:focus { outline: none; border-color: #42b883; }
-    .actions { margin-top: 20px; display: flex; gap: 10px; }
-    .action-btn { flex: 1; padding: 12px; border-radius: 6px; border: none; cursor: pointer; background: #333; color: #fff; font-weight: bold; transition: all 0.2s; }
-    .action-btn.primary { background: #42b883; color: #000; }
-    .action-btn:hover { transform: translateY(-2px); opacity: 0.9; }
-    </style>
