@@ -7,7 +7,7 @@
     const noteContent = ref('')
     const isSaving = ref(false)
     
-    // 🔥 关键修改：连接到 Zeabur 云端后端
+    // 🔥 你的 Zeabur 云端地址
     const API_BASE = 'https://life-skill-tree.zeabur.app'
     
     watch(() => props.nodeData, (newData) => {
@@ -47,8 +47,10 @@
     
     <template>
       <div v-if="isOpen" class="overlay" @click="$emit('close')"></div>
+    
       <div class="drawer" :class="{ 'open': isOpen }">
         <div v-if="nodeData" class="drawer-content">
+          
           <header class="drawer-header">
             <img :src="nodeData.icon" class="header-icon" alt="icon" />
             <div class="header-text">
@@ -59,21 +61,23 @@
             </div>
             <button class="close-btn" @click="$emit('close')">×</button>
           </header>
+    
           <hr class="divider" />
+    
           <div class="notes-area">
             <h3>📚 学习笔记</h3>
             <p class="placeholder-text">关于 <strong>{{ nodeData.label }}</strong> 的知识点：</p>
             <textarea v-model="noteContent" placeholder="在此输入笔记..." class="note-input"></textarea>
           </div>
+    
           <div class="actions">
             <button class="action-btn">查看教程</button>
             <button class="action-btn primary" @click="saveNote" :disabled="isSaving">
               {{ isSaving ? '保存中...' : '保存笔记' }}
             </button>
           </div>
-        </div>
-      </div>
-    </template>
+    
+        </div> </div> </template>
     
     <style scoped>
     .overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.6); z-index: 99; backdrop-filter: blur(2px); }
@@ -93,3 +97,8 @@
     .placeholder-text { font-size: 0.9rem; color: #777; margin-bottom: 10px; }
     .note-input { width: 100%; flex-grow: 1; min-height: 200px; background: #222; border: 1px solid #444; color: #ddd; padding: 12px; border-radius: 8px; resize: none; font-family: inherit; box-sizing: border-box; font-size: 14px; line-height: 1.5; }
     .note-input:focus { outline: none; border-color: #42b883; }
+    .actions { margin-top: 20px; display: flex; gap: 10px; }
+    .action-btn { flex: 1; padding: 12px; border-radius: 6px; border: none; cursor: pointer; background: #333; color: #fff; font-weight: bold; transition: all 0.2s; }
+    .action-btn.primary { background: #42b883; color: #000; }
+    .action-btn:hover { transform: translateY(-2px); opacity: 0.9; }
+    </style>
