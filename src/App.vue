@@ -18,7 +18,7 @@
   const nodes = ref([])
   const edges = ref([])
   
-  // 1. 获取所有数据 (节点 + 连线)
+  // 1. 获取所有数据
   async function fetchData() {
     try {
       const res = await fetch(`${API_BASE}/api/data`)
@@ -28,7 +28,6 @@
         id: n.id, type: 'skill', position: { x: n.x, y: n.y }, data: { ...n }
       }))
       
-      // 转换连线数据
       edges.value = data.edges.map(e => ({
         id: e.id, source: e.source, target: e.target, 
         animated: true, style: { stroke: '#555', strokeWidth: 2 } 
@@ -38,15 +37,26 @@
   
   onMounted(fetchData)
   
-  // 2. VueFlow 核心钩子
-  const { onConnect, addEdges, onEdgeClick } = useVueFlow()
+  // 2. 引入 VueFlow 核心功能 (用来添加连线)
+  const { addEdges } = useVueFlow()
   
-  // 🔥 监听连线事件 (一松手就保存)
-  onConnect(async (params) => {
-    // 先在前端画出来 (这就是所谓的"乐观更新"，让用户感觉不到延迟)
+  // 🔥 修复点：把连线逻辑提取成一个独立函数
+  async function onConnectHandler(params) {
+    console.log('🔗 尝试连线:', params) // 调试日志
+  
+    // 1. 乐观更新：先在界面上画出来
     const tempId = `temp-${Date.now()}`
-    addEdges([{ ...params, id: tempId, animated: true, style: { stroke: '#555' } }])
+    const newEdge = { 
+      ...params, 
+      id: tempId, 
+      animated: true, 
+      style: { stroke: '#555', strokeWidth: 2 } 
+    }
+    
+    // 手动添加到 edges 数组，确保界面立即反应
+    edges.value.push(newEdge) 
   
+    // 2. 发送给后端
     try {
       const res = await fetch(`${API_BASE}/api/edges/add`, {
         method: 'POST',
@@ -54,17 +64,27 @@
         body: JSON.stringify({ source: params.source, target: params.target })
       })
       const data = await res.json()
-      if (!data.success) {
-        // 如果后端失败了，这里应该回滚(为了简单暂时省略)
+      
+      if (data.success) {
+        console.log('✅ 连线保存成功')
+        // 可选：用真实 ID 替换临时 ID (这里简单起见就不替换了，下次刷新就是真实的)
+      } else {
         alert('连线保存失败')
+        // 回滚：从数组里删掉刚才那条线
+        edges.value = edges.value.filter(e => e.id !== tempId)
       }
-    } catch (e) { alert('网络错误') }
-  })
+    } catch (e) { 
+      console.error(e)
+      alert('网络错误')
+      edges.value = edges.value.filter(e => e.id !== tempId)
+    }
+  }
   
-  // 🔥 监听连线点击 (双击删除)
-  // VueFlow 默认没有 onEdgeDoubleClick，我们用单击+确认框来删除
-  onEdgeClick(async (event) => {
+  // 🔥 修复点：连线点击逻辑
+  async function onEdgeClickHandler(event) {
     const edgeId = event.edge.id
+    console.log('点击连线:', edgeId)
+  
     const confirmDelete = confirm('⚡️ 要断开这条连线吗？')
     if (!confirmDelete) return
   
@@ -75,11 +95,12 @@
     try {
       await fetch(`${API_BASE}/api/edges/${edgeId}`, { method: 'DELETE' })
     } catch (e) { console.error('删除连线失败') }
-  })
+  }
   
-  // 3. 节点交互逻辑 (保持不变)
-  const { onNodeClick, findNode } = useVueFlow()
-  onNodeClick(async (event) => {
+  // 节点点击逻辑
+  const { findNode } = useVueFlow() // findNode 还是可以用 hook 拿到的
+  
+  async function onNodeClickHandler(event) {
     const node = findNode(event.node.id)
     selectedNode.value = { ...node.data, id: node.id }
     isDrawerOpen.value = true
@@ -92,11 +113,15 @@
       })
       const data = await res.json()
       if (data.success) {
-         node.data = { ...node.data, state: data.node.state }
-         selectedNode.value = { ...node.data, id: node.id }
+         // 更新本地数据
+         const nodeIndex = nodes.value.findIndex(n => n.id === event.node.id)
+         if(nodeIndex > -1) {
+           nodes.value[nodeIndex].data = { ...nodes.value[nodeIndex].data, state: data.node.state }
+         }
+         selectedNode.value = { ...node.data, id: node.id, state: data.node.state }
       }
     } catch (e) { console.error(e) }
-  })
+  }
   
   async function createNode() {
     const name = prompt('✨ 新技能名称：', '新技能')
@@ -117,15 +142,16 @@
   
   function handleNodeDelete(deletedId) {
     nodes.value = nodes.value.filter(n => n.id !== deletedId)
-    // 还要把连着这个节点的线也删了
     edges.value = edges.value.filter(e => e.source !== deletedId && e.target !== deletedId)
     isDrawerOpen.value = false
   }
   
   function handleNodeUpdate(updatedNode) {
-    const node = findNode(updatedNode.id)
-    if (node) node.data = { ...node.data, ...updatedNode }
-    selectedNode.value = updatedNode
+      const index = nodes.value.findIndex(n => n.id === updatedNode.id)
+      if (index !== -1) {
+          nodes.value[index].data = { ...nodes.value[index].data, ...updatedNode }
+      }
+      selectedNode.value = updatedNode
   }
   </script>
   
@@ -141,6 +167,9 @@
         :node-types="nodeTypes" 
         fit-view-on-init 
         class="basic-flow"
+        @connect="onConnectHandler"
+        @edge-click="onEdgeClickHandler"
+        @node-click="onNodeClickHandler"
       >
         <Background pattern-color="#444" :gap="25" />
         <Controls />
@@ -165,7 +194,7 @@
   .add-btn { background: #42b883; color: #000; border: none; padding: 10px 20px; border-radius: 8px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.5); transition: all 0.2s; }
   .add-btn:hover { transform: scale(1.05); background: #3aa876; }
   
-  /* 🔥 连线样式微调：让线看起来更科技感 */
+  /* 连线样式 */
   .vue-flow__edge-path { stroke-width: 2px; stroke: #666; }
   .vue-flow__edge:hover .vue-flow__edge-path { stroke: #42b883; stroke-width: 3px; cursor: pointer; }
   </style>
