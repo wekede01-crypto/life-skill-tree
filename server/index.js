@@ -5,16 +5,24 @@ const mongoose = require('mongoose');
 const app = express();
 const PORT = 3000;
 
-// 🔥 确保这里填的是你真实的云端数据库地址！
-const MONGO_URI = "mongodb+srv://yinhexi:zww123456@cluster0.xxxxx.mongodb.net/my-skill-tree?retryWrites=true&w=majority";
+// 🔥 修正后的数据库连接地址 (已填入你的真实账号密码)
+const MONGO_URI = "mongodb+srv://wekede01_db_user:nVZGtvKqeMpSwDLj@cluster0.pjgojjd.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
 
-app.use(cors());
+// 允许跨域访问 (解决 CORS 问题)
+app.use(cors({
+    origin: '*',
+    methods: ['GET', 'POST'],
+    allowedHeaders: ['Content-Type']
+}));
+
 app.use(express.json());
 
+// 连接 MongoDB
 mongoose.connect(MONGO_URI)
     .then(() => console.log('✅ MongoDB Cloud 连接成功'))
     .catch(err => console.error('❌ MongoDB 连接失败:', err));
 
+// 定义数据结构
 const NodeSchema = new mongoose.Schema({
     id: { type: String, required: true, unique: true },
     state: { type: String, default: 'inactive' },
@@ -22,6 +30,7 @@ const NodeSchema = new mongoose.Schema({
 });
 const NodeModel = mongoose.model('Node', NodeSchema);
 
+// 初始数据
 const INITIAL_NODES = [
     { id: 'root', state: 'active', note: '' },
     { id: 'amz', state: 'inactive', note: '' },
@@ -33,15 +42,22 @@ const INITIAL_NODES = [
     { id: 'node', state: 'inactive', note: '' }
 ];
 
+// 初始化数据库
 async function initDb() {
-    const count = await NodeModel.countDocuments();
-    if (count === 0) {
-        console.log('正在初始化云端数据...');
-        await NodeModel.insertMany(INITIAL_NODES);
-        console.log('初始化完成');
+    try {
+        const count = await NodeModel.countDocuments();
+        if (count === 0) {
+            console.log('正在初始化云端数据...');
+            await NodeModel.insertMany(INITIAL_NODES);
+            console.log('初始化完成');
+        }
+    } catch (e) {
+        console.error('初始化数据失败:', e);
     }
 }
 mongoose.connection.once('open', initDb);
+
+// --- API 接口 ---
 
 app.get('/api/nodes', async (req, res) => {
     try {
