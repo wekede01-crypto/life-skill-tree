@@ -2,7 +2,6 @@
     import { ref, watch } from 'vue'
     
     const props = defineProps(['isOpen', 'nodeData'])
-    // 🔥 新增 'delete-node' 事件
     const emit = defineEmits(['close', 'update-node', 'delete-node'])
     
     const noteContent = ref('')
@@ -35,9 +34,8 @@
       finally { isSaving.value = false }
     }
     
-    // 🔥 新增：删除功能
     async function deleteSkill() {
-      if (!confirm(`确定要彻底删除 "${props.nodeData.label}" 吗？此操作不可恢复！`)) return
+      if (!confirm(`确定要彻底删除 "${props.nodeData.label}" 吗？`)) return
     
       isDeleting.value = true
       try {
@@ -46,7 +44,7 @@
         })
         const data = await res.json()
         if (data.success) {
-          emit('delete-node', props.nodeData.id) // 通知父组件移除节点
+          emit('delete-node', props.nodeData.id)
           alert('已删除 🗑️')
         } else {
           alert('删除失败')
@@ -62,7 +60,9 @@
         <div v-if="nodeData" class="drawer-content">
           
           <header class="drawer-header">
-            <img :src="nodeData.icon" class="header-icon" alt="icon" />
+            <div class="header-icon-box">
+                 <img :src="nodeData.icon" class="header-icon" />
+            </div>
             <div class="header-text">
               <h2>{{ nodeData.label }}</h2>
               <span class="status-badge" :class="nodeData.state">
@@ -83,7 +83,6 @@
             <button class="action-btn danger" @click="deleteSkill" :disabled="isDeleting">
               {{ isDeleting ? '删除中...' : '🗑️ 删除节点' }}
             </button>
-            
             <button class="action-btn primary" @click="saveNote" :disabled="isSaving">
               {{ isSaving ? '保存中...' : '💾 保存笔记' }}
             </button>
@@ -94,12 +93,12 @@
     </template>
     
     <style scoped>
-    /* 保持原有样式，仅新增 danger 按钮样式 */
     .overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.6); z-index: 99; backdrop-filter: blur(2px); }
     .drawer { position: fixed; top: 0; right: -400px; bottom: 0; width: 350px; background: #1a1a1a; border-left: 1px solid #333; z-index: 100; transition: right 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); box-shadow: -5px 0 30px rgba(0,0,0,0.8); color: #fff; padding: 20px; box-sizing: border-box; display: flex; flex-direction: column; }
     .drawer.open { right: 0; }
     .drawer-header { display: flex; align-items: center; gap: 15px; margin-bottom: 20px; }
-    .header-icon { width: 48px; height: 48px; }
+    .header-icon-box { width: 48px; height: 48px; background: #333; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 1px solid #555; }
+    .header-icon { width: 28px; height: 28px; }
     .header-text h2 { margin: 0; font-size: 1.2rem; }
     .close-btn { margin-left: auto; background: none; border: none; color: #666; font-size: 28px; cursor: pointer; line-height: 1; }
     .close-btn:hover { color: #fff; }
@@ -114,7 +113,6 @@
     .actions { margin-top: 20px; display: flex; gap: 10px; }
     .action-btn { flex: 1; padding: 12px; border-radius: 6px; border: none; cursor: pointer; background: #333; color: #fff; font-weight: bold; transition: all 0.2s; }
     .action-btn.primary { background: #42b883; color: #000; }
-    /* 🔥 红色删除按钮 */
     .action-btn.danger { background: #333; color: #ff4d4d; border: 1px solid #552222; }
     .action-btn.danger:hover { background: #552222; }
     .action-btn:hover { transform: translateY(-2px); opacity: 0.9; }
